@@ -27,7 +27,7 @@ SPID OpenID (soon available!)
 
 ![meme](https://raw.githubusercontent.com/umbros/spid-docs/master/images/meme.png)
 
-[Documentazione](https://github.com/umbros/spid-docs/blob/master/pages/spid-documentazione.md)
+[Documentazione](https://github.com/umbros/spid-docs/blob/master/pages/documentazione-e-utilita.md)
 --------------
 
 
