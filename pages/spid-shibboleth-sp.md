@@ -19,10 +19,10 @@ sudo systemctl enable httpd.service
 
 Creazione del virtualhost:
 ```
-sudo mkdir -p /var/www/spid.umbros.it/main
-sudo chown -R $USER:$USER /var/www/spid.umbros.it/main/
+sudo mkdir -p /var/www/<hostname-sp>/main
+sudo chown -R $USER:$USER /var/www/<hostname-sp>/main/
 sudo chmod -R 755 /var/www
-sudo vi /var/www/spid.umbros.it/main/index.html
+sudo vi /var/www/<hostname-sp>/main/index.html
 ```
 
 Se non sono stati creati altri virtual host creare:
@@ -43,21 +43,21 @@ IncludeOptional sites-enabled/*.conf
 
 Configurare il virtual host:
 ```
-sudo vi /etc/httpd/sites-available/spid.umbros.it.conf
+sudo vi /etc/httpd/sites-available/<hostname-sp>.conf
 ```
 
 ```
 <VirtualHost *:80>
-  ServerName spid.umbros.it
-  DocumentRoot /var/www/spid.umbros.it/web
-  ErrorLog /var/www/spid.umbros.it/logs/error.log
-  CustomLog /var/www/spid.umbros.it/logs/requests.log combined
+  ServerName <hostname-sp>
+  DocumentRoot /var/www/<hostname-sp>/web
+  ErrorLog /var/www/<hostname-sp>/logs/error.log
+  CustomLog /var/www/<hostname-sp>/logs/requests.log combined
 </VirtualHost>
 ```
 
 Creare il link su sites-enabled:
 ```
-sudo ln -s /etc/httpd/sites-available/spid.umbros.it.conf /etc/httpd/sites-enabled/spid.umbros.it.conf
+sudo ln -s /etc/httpd/sites-available/<hostname-sp>.conf /etc/httpd/sites-enabled/<hostname-sp>.conf
 ```
 
 Aprire le porte 80 e 443
@@ -73,7 +73,7 @@ Installare un certificato let's encrypt:
 ```
 sudo yum install epel-release
 sudo yum install httpd mod_ssl python-certbot-apache
-sudo certbot --apache -d spid.umbros.it
+sudo certbot --apache -d <hostname-sp>
 sudo systemctl restart httpd
 ```
 
@@ -94,10 +94,10 @@ sudo systemctl restart httpd
 
 Creare la cartella protetta
 ```
-sudo mkdir -p /var/www/spid.umbros.it-protected/main/
-sudo chown -R $USER:$USER /var/www/spid.umbros.it-protected/main/
+sudo mkdir -p /var/www/<hostname-sp>-protected/main/
+sudo chown -R $USER:$USER /var/www/<hostname-sp>-protected/main/
 sudo chmod -R 755 /var/www
-sudo vi /var/www/spid.umbros.it-protected/main/index.php
+sudo vi /var/www/<hostname-sp>-protected/main/index.php
 ```
 
 ```
@@ -127,13 +127,13 @@ Dati:<br>
 
 Configurare il virtual host:
 ```
-sudo vi /etc/httpd/sites-available/spid.umbros.it-protected.conf
+sudo vi /etc/httpd/sites-available/<hostname-sp>-protected.conf
 ```
 
 ```
 <IfModule mod_alias.c>
-  Alias /secure /var/www/spid.umbros.it-protected/
-  <Directory //var/www/spid.umbros.it-protected>
+  Alias /secure /var/www/<hostname-sp>-protected/
+  <Directory //var/www/<hostname-sp>-protected>
     Options Indexes MultiViews FollowSymLinks
     Require all granted
   </Directory>
@@ -147,7 +147,7 @@ sudo vi /etc/httpd/sites-available/spid.umbros.it-protected.conf
 
 Creare il link su sites-enabled:
 ```
-sudo ln -s /etc/httpd/sites-available/spid.umbros.it-protected.conf /etc/httpd/sites-enabled/spid.umbros.it-protected.conf
+sudo ln -s /etc/httpd/sites-available/<hostname-sp>-protected.conf /etc/httpd/sites-enabled/<hostname-sp>-protected.conf
 ```
 
 Installazione di Shibboleth
@@ -171,16 +171,18 @@ sudo systemctl enable shibd.service
 ```
 
 Copiare i file xml di configurazione di Shibbolet e configurare shibboleth2.xml
-1. shibboleth.xml
-2. attribute_map.xml
+1. [shibboleth.xml](https://github.com/umbros/spid-docs/blob/master/resources/shibboleth2.xml)
+2. [attribute_map.xml](https://github.com/umbros/spid-docs/blob/master/resources/attribute-map.xml)
 
-Sul file shibboleth2.xml allegato è riportata la configurazione dell'IDP di test, per aggiungere gli IDP di produzione di SPID, scaricare i metadata attraverso l'invocazione dell'api del Registro SPID 
+Sul file shibboleth2.xml allegato è riportata la configurazione dell'IDP di test, per aggiungere gli IDP di produzione di SPID, scaricare i metadata attraverso l'invocazione dell'api del Registro SPID
 ```
 curl -H "Accept:application/json" https://registry.spid.gov.it/api/identity-providers
 ```
-copiarli in /etc/shibboleth/metadata/ (creare la cartella)
+copiarli in /etc/shibboleth/metadata/ (creare la cartella) e aggiungerli come fatto per l'ambiente di test.
 
 Creare il certificato di signing che andrà copiato nella cartella /etc/shibboleth/certs/ (creare la cartella):
 ```
 openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout sp-cert.key -out sp-cert.crt
 ```
+
+Uno dei primi rilasci di SPID sulla community developers è stato il [playbook Ansible di shibboleth-sp](https://github.com/italia/spid-sp-playbook).

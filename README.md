@@ -1,5 +1,5 @@
-SPID HowTos
-===========
+SPID HowTos beta
+================
 
 ![SPID](https://raw.githubusercontent.com/umbros/spid-docs/master/images/spid.png)
 
@@ -25,12 +25,8 @@ SPID OpenID (soon available!)
 
 
 
-Umberto Rosini
-
-Agenzia per l'Italia Digitale
-
-Presidenza del Consiglio dei Ministri
-
-rosini@agid.gov.it
-
-umbr0s
+Umberto Rosini<br>
+Agenzia per l'Italia Digitale<br>
+Presidenza del Consiglio dei Ministri<br>
+rosini@agid.gov.it<br>
+umbr0s<br>

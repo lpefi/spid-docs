@@ -1,186 +1,45 @@
-Shibbolet-SP SPID - Just a simple howto
-=======================================
+Architetture di sistemi implementati con SPID Saml
+==================================================
 
-Questo piccolo howto vi guiderà nella configurazione di Shibboleth-SP su Centos7.
+Premessa di tutto è che SPID è un sistema di autenticazione, pertanto, nell'architettura, se necessario, dovrà essere previsto e implementato un sistema di autorizzazione (acl, abac, rbac...).
 
-Installazione di Apache
------------------------
-```
-sudo yum clean all
-sudo yum -y update
-sudo yum -y install httpd
-```
+Possiamo individuare due modalità di implementazione di SPID in sistemi applicativi e sono:
 
-Configurare Shibd come servizio:
-```
-sudo systemctl start httpd.service
-sudo systemctl enable httpd.service
-```
+1. architettura "monolitica"
+2. architettura a layer
+3. architettura mista
 
-Creazione del virtualhost:
-```
-sudo mkdir -p /var/www/spid.umbros.it/main
-sudo chown -R $USER:$USER /var/www/spid.umbros.it/main/
-sudo chmod -R 755 /var/www
-sudo vi /var/www/spid.umbros.it/main/index.html
-```
+# 1. Architettura monolitica
 
-Se non sono stati creati altri virtual host creare:
-```
-sudo mkdir /etc/httpd/sites-available
-sudo mkdir /etc/httpd/sites-enabled
-```
+**Pro:** sistema pronto per SPID senza ulteriori componenti.
+**Contro:** maggiore sviluppo e manutenzione applicativa e di difficile scalabilità.
 
-Modificare httpd.conf:
-```
-sudo vi /etc/httpd/conf/httpd.conf
-```
+L'architettura monolitica si rende standalone da sistemi di accesso (iam) e contiene all'interno tutte le funzionalità necessarie ad autenticare, ed eventualmente autorizzare, l'utente. Questa modalità è più indicata per sistemi verticali, sistemi portal, cms, app mobile.
 
-Alla fine del file aggiungere:
-```
-IncludeOptional sites-enabled/*.conf
-```
+L'infrastruttura deve prevedere di:
 
-Configurare il virtual host:
-```
-sudo vi /etc/httpd/sites-available/spid.umbros.it.conf
-```
+* verificare se l'utente è già autenticato o no (come un qualsiasi plugin di autenticazione)
+* esporre il [bottone di login](https://github.com/italia/spid-sp-access-button) che consente all'utente di scegliere l'Identity Provider a cui inviare la richiesta; per indicazioni vedere [questo commento](https://github.com/italia/spid-sp-playbook/issues/3#issuecomment-331719991)
+* preparare la request e inviarla all'Identity Provider
+* ricevere la response e leggerne gli attributi inviati dall'Identity Provider
 
-```
-<VirtualHost *:80>
-  ServerName spid.umbros.it
-  DocumentRoot /var/www/spid.umbros.it/web
-  ErrorLog /var/www/spid.umbros.it/logs/error.log
-  CustomLog /var/www/spid.umbros.it/logs/requests.log combined
-</VirtualHost>
-```
 
-Creare il link su sites-enabled:
-```
-sudo ln -s /etc/httpd/sites-available/spid.umbros.it.conf /etc/httpd/sites-enabled/spid.umbros.it.conf
-```
+# 2. Architettura a layer
 
-Aprire le porte 80 e 443
-```
-sudo firewall-cmd --add-service=http
-sudo firewall-cmd --add-service=https
-sudo firewall-cmd --runtime-to-permanent
-sudo firewall-cmd --reload
-sudo systemctl restart httpd
-```
+**Pro:** sviluppo più rapido gestione di un numero di applicazioni anche non omogenee (scalabilità).
+**Contro:** necessità di installare un componente iam (sp) e di manutenerlo e differenti modalità di rilascio degli attributi da parte dei middleware.
 
-Installare un certificato let's encrypt:
-```
-sudo yum install epel-release
-sudo yum install httpd mod_ssl python-certbot-apache
-sudo certbot --apache -d spid.umbros.it
-sudo systemctl restart httpd
-```
+Questa architettura prevede l'utilizzo di un middleware che, chiamato dall'applicazione che necessita di autenticazione, prepara e invia la request e riceve e gestisce la response contenente gli attributi dell'utente autenticato. Questa modalità è più indicata per federare un buon numero di sistemi anche non omogenei, app mobile.
 
-Impostare il rinnovo del certificato
-```
-sudo certbot renew
-sudo crontab -e
-30 2 * * * /usr/bin/certbot renew >> /var/log/le-renew.log
-```
+Questa architettura necessita di:
 
-Le installazioni seguenti sono opzionali:
+* dover configurare un middleware (su github.com/italia sono stati rilasciati shibboleth - installazione e playbook - e simplesamlphp - installazione)
+* importare gli attributi sul sistema (differenti tra sistema e sistema di middleware)
 
-Installare php
-```
-sudo yum install php
-sudo systemctl restart httpd
-```
 
-Creare la cartella protetta
-```
-sudo mkdir -p /var/www/spid.umbros.it-protected/main/
-sudo chown -R $USER:$USER /var/www/spid.umbros.it-protected/main/
-sudo chmod -R 755 /var/www
-sudo vi /var/www/spid.umbros.it-protected/main/index.php
-```
+# 3. Architettura mista
 
-```
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-"http://www.w3.org/TR/html4/loose.dtd">
-<html>
-   <head>
-      <title>SP test</title>
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-   </head>
-   <body>
-Dati:<br>
-<?php
-      foreach ($_SERVER as $key => $value){
-         print $key." = ".$value."<br>";
-      }
-      foreach ($_ENV as $key => $value){
-         print $key." = ".$value."<br>";
-      }
-      foreach ($_COOKIE as $key => $value){
-         print $key." = ".$value."<br>";
-      }
-?>
-   </body>
-</html>
-```
+**Pro:** sistema completo.
+**Contro:** maggiore effort nello sviluppo e manutenzione applicativa.
 
-Configurare il virtual host:
-```
-sudo vi /etc/httpd/sites-available/spid.umbros.it-protected.conf
-```
-
-```
-<IfModule mod_alias.c>
-  Alias /secure /var/www/spid.umbros.it-protected/
-  <Directory //var/www/spid.umbros.it-protected>
-    Options Indexes MultiViews FollowSymLinks
-    Require all granted
-  </Directory>
-  <Location /protected>
-    AuthType shibboleth
-    ShibRequestSetting requireSession 1
-    Require valid-user
-  </Location>
-</IfModule>
-```
-
-Creare il link su sites-enabled:
-```
-sudo ln -s /etc/httpd/sites-available/spid.umbros.it-protected.conf /etc/httpd/sites-enabled/spid.umbros.it-protected.conf
-```
-
-Installazione di Shibboleth
----------------------------
-
-```
-sudo yum install wget
-sudo wget http://download.opensuse.org/repositories/security://shibboleth/CentOS_7/security:shibboleth.repo -O /etc/yum.repos.d/shibboleth.repo
-yum install shibboleth.x86_64
-```
-
-Installare ntp:
-```
-sudo yum install ntp
-```
-
-Configurare Shibd come servizio:
-```
-sudo systemctl start shibd.service
-sudo systemctl enable shibd.service
-```
-
-Copiare i file xml di configurazione di Shibbolet e configurare shibboleth2.xml
-1. shibboleth.xml
-2. attribute_map.xml
-
-Sul file shibboleth2.xml allegato è riportata la configurazione dell'IDP di test, per aggiungere gli IDP di produzione di SPID, scaricare i metadata attraverso l'invocazione dell'api del Registro SPID 
-```
-curl -H "Accept:application/json" https://registry.spid.gov.it/api/identity-providers
-```
-copiarli in /etc/shibboleth/metadata/ (creare la cartella)
-
-Creare il certificato di signing che andrà copiato nella cartella /etc/shibboleth/certs/ (creare la cartella):
-```
-openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout sp-cert.key -out sp-cert.crt
-```
+Prevede le due modalità attivabili su necessità di chi la utilizza. Questa modalità è più indicata per sdk.
